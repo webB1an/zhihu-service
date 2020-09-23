@@ -92,4 +92,41 @@ router.post('/delete', async (req, res, next) => {
   }
 })
 
+router.post('/random', async (req, res, next) => {
+  let { sortId, itemName, minPrice = 0, maxPrice = 10000000, num = 10  } = req.body.requestData
+
+  minPrice = minPrice || 0
+  maxPrice = 10000000 || 10000000
+  num = num ? Number(num) : 10
+
+  const nameQuery = itemName ? { name: new RegExp(itemName) } : {}
+  const match = {
+    sortId: sortId,
+    ...nameQuery,
+    price: { $gte: minPrice, $lte: maxPrice }
+  }
+
+  try {
+    const count = await itemModel.find(match).count().exec()
+
+    const randomNumber = num >= count ? count : num
+
+    let result = await itemModel.aggregate([
+      { $match: match},
+      { $sample: { size: randomNumber }},
+      { $project: { _id: 0, name: 1, price: 1, des: 1, pros: 1, cons: 1 }}
+    ]).sort({ price: 1 })
+    res.json({
+      code: 200,
+      msg: '成功！',
+      data: result
+    })
+  } catch (error) {
+    res.json({
+      error: 1000,
+      msg: '获取数据失败'
+    })
+  }
+})
+
 module.exports = router
